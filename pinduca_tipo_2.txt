@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Pinduca Coelho is Hungry</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial, sans-serif;
+    }
+    canvas {
+      border: 2px solid black;
+      display: block;
+      margin-top: 20px;
+    }
+    #startScreen, #gameOverScreen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    #gameOverScreen {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="startScreen">
+    <h1>🐰 Pinduca Coelho is Hungry 🥕</h1>
+    <button onclick="startGame()">Jogar</button>
+  </div>
+
+  <div id="gameOverScreen">
+    <h1>💥 Pinduca comeu demais! 💥</h1>
+    <p id="stats"></p>
+    <p id="time"></p>
+    <button onclick="restartGame()">Jogar Novamente</button>
+  </div>
+
+  <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+  <script>
+    let gameRunning = false;
+    let gameOver = false;
+    let startTime, fruitCount;
+    let direction = { x: 0, y: 0 };
+    let fruits = ["🍎", "🍌", "🍇", "🍓"];
+    let maxFruits;
+    let rabbitSize = 30;
+    let rabbitSpeed = 3;
+    let animationFrame;
+
+    let enemies = [
+      { x: Math.random() * 600, y: Math.random() * 600, speed: 1.5 },
+      { x: Math.random() * 600, y: Math.random() * 600, speed: 1.2 }
+    ];
+
+    function startGame() {
+      document.getElementById('startScreen').style.display = 'none';
+      document.getElementById('gameCanvas').style.display = 'block';
+      gameRunning = true;
+      gameOver = false;
+      startTime = Date.now();
+      fruitCount = 0;
+      maxFruits = Math.floor(Math.random() * (15 - 7 + 1)) + 7;
+      rabbitSize = 30;
+      rabbitSpeed = 3;
+      direction = { x: 0, y: 0 };
+      enemies.forEach(enemy => {
+        enemy.x = Math.random() * 600;
+        enemy.y = Math.random() * 600;
+      });
+      initGame();
+    }
+
+    function restartGame() {
+      cancelAnimationFrame(animationFrame);
+      document.getElementById('gameOverScreen').style.display = 'none';
+      document.getElementById('gameCanvas').style.display = 'block';
+      startGame();
+    }
+
+    function triggerExplosion() {
+      gameOver = true;
+      document.getElementById('gameOverScreen').style.display = 'flex';
+      document.getElementById('gameCanvas').style.display = 'none';
+      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById('stats').innerText = `Você comeu ${fruitCount} frutas!`;
+      document.getElementById('time').innerText = `Tempo: ${timeTaken}s`;
+    }
+
+    function initGame() {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      let x = canvas.width / 2;
+      let y = canvas.height / 2;
+      let fruitX = Math.random() * (canvas.width - 20) + 10;
+      let fruitY = Math.random() * (canvas.height - 20) + 10;
+      let currentFruit = fruits[Math.floor(Math.random() * fruits.length)];
+
+      window.addEventListener("keydown", function (event) {
+        switch (event.key) {
+          case "ArrowUp": direction = { x: 0, y: -rabbitSpeed }; break;
+          case "ArrowDown": direction = { x: 0, y: rabbitSpeed }; break;
+          case "ArrowLeft": direction = { x: -rabbitSpeed, y: 0 }; break;
+          case "ArrowRight": direction = { x: rabbitSpeed, y: 0 }; break;
+        }
+      });
+
+      function update() {
+        if (gameOver) return;
+
+        x += direction.x;
+        y += direction.y;
+        x = Math.max(rabbitSize, Math.min(canvas.width - rabbitSize, x));
+        y = Math.max(rabbitSize, Math.min(canvas.height - rabbitSize, y));
+
+        enemies.forEach(enemy => {
+          let dx = fruitX - enemy.x;
+          let dy = fruitY - enemy.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > 1) {
+            enemy.x += (dx / dist) * enemy.speed;
+            enemy.y += (dy / dist) * enemy.speed;
+          }
+
+          if (dist < 15) {
+            fruitX = Math.random() * (canvas.width - 20) + 10;
+            fruitY = Math.random() * (canvas.height - 20) + 10;
+            currentFruit = fruits[Math.floor(Math.random() * fruits.length)];
+          }
+        });
+
+        let hitbox = rabbitSize * 0.9;
+        if (Math.abs(x - fruitX) < hitbox && Math.abs(y - fruitY) < hitbox) {
+          fruitX = Math.random() * (canvas.width - 20) + 10;
+          fruitY = Math.random() * (canvas.height - 20) + 10;
+          currentFruit = fruits[Math.floor(Math.random() * fruits.length)];
+          rabbitSize += 5;
+          fruitCount++;
+          if (fruitCount >= maxFruits) {
+            triggerExplosion();
+          }
+        }
+      }
+
+      function gameLoop() {
+        if (!gameOver) {
+          update();
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.font = `${rabbitSize}px Arial`;
+          ctx.fillText("🐰", x - rabbitSize / 2, y + rabbitSize / 2);
+          enemies.forEach(enemy => {
+            ctx.font = `${25}px Arial`;
+            ctx.fillText("🦝", enemy.x - 12, enemy.y + 10);
+          });
+          ctx.fillStyle = 'black';
+          ctx.font = '16px Arial';
+          ctx.fillText(`Tempo: ${Math.floor((Date.now() - startTime) / 1000)}s`, 10, 20);
+          ctx.fillText(`Frutas: ${fruitCount}`, 10, 40);
+          ctx.fillText(currentFruit, fruitX, fruitY);
+          animationFrame = requestAnimationFrame(gameLoop);
+        }
+      }
+
+      gameLoop();
+    }
+  </script>
+</body>
+</html>
